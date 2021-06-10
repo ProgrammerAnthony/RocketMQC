@@ -99,6 +99,19 @@ public class RouteInfoManager {
         return topicList.encode();
     }
 
+    /**
+     * 注册broker到NameServer上，clusterName，brokerAddr，brokerName，brokerId等信息加入到对应的路由数据表中去
+     * 使用ReadWriteLock进行读写锁加锁
+     * @param clusterName
+     * @param brokerAddr
+     * @param brokerName
+     * @param brokerId
+     * @param haServerAddr
+     * @param topicConfigWrapper
+     * @param filterServerList
+     * @param channel
+     * @return
+     */
     public RegisterBrokerResult registerBroker(
         final String clusterName,
         final String brokerAddr,
@@ -111,6 +124,7 @@ public class RouteInfoManager {
         RegisterBrokerResult result = new RegisterBrokerResult();
         try {
             try {
+                //加入写锁，同一时间，只能一个线程执行
                 this.lock.writeLock().lockInterruptibly();
 
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
@@ -118,11 +132,14 @@ public class RouteInfoManager {
                     brokerNames = new HashSet<String>();
                     this.clusterAddrTable.put(clusterName, brokerNames);
                 }
+                //将brokerName加入到这个set集合去，每隔30s发送注册请求作为心跳，这里会去重
                 brokerNames.add(brokerName);
 
                 boolean registerFirst = false;
-
+                //存放了所有broker的详细路由数据，根据brokerName获取的BrokerData
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+
+                //第一次请求，这里就是null，封装一个brokerdata，放入到路由数据表
                 if (null == brokerData) {
                     registerFirst = true;
                     brokerData = new BrokerData(clusterName, brokerName, new HashMap<Long, String>());
@@ -156,6 +173,7 @@ public class RouteInfoManager {
                     }
                 }
 
+                //心跳机制：broker每过30s就会封装一个新的BrokerLiveInfo放入map，覆盖之前的上一次的BrokerLiveInfo
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr,
                     new BrokerLiveInfo(
                         System.currentTimeMillis(),
@@ -427,14 +445,17 @@ public class RouteInfoManager {
     }
 
     public void scanNotActiveBroker() {
+        //心跳机制：遍历brokerLiveTable 拿到最近一次心跳的BrokerLiveInfo
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, BrokerLiveInfo> next = it.next();
             long last = next.getValue().getLastUpdateTimestamp();
+            //心跳机制：如果两分钟都没有收到对应的心跳数据，则说明broker死掉了
             if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
                 RemotingUtil.closeChannel(next.getValue().getChannel());
                 it.remove();
                 log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
+                //心跳机制：会把这个broker从路由数据表里剔除出去
                 this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
             }
         }

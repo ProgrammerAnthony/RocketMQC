@@ -96,6 +96,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     public NettyRemotingServer(final NettyServerConfig nettyServerConfig,
         final ChannelEventListener channelEventListener) {
         super(nettyServerConfig.getServerOnewaySemaphoreValue(), nettyServerConfig.getServerAsyncSemaphoreValue());
+        //RocketMq中的Netty解读：Netty 关键步骤1，创建ServerBootstrap实例
         this.serverBootstrap = new ServerBootstrap();
         this.nettyServerConfig = nettyServerConfig;
         this.channelEventListener = channelEventListener;
@@ -114,7 +115,9 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             }
         });
 
+        //针对不同的nio的实现，判断底层是否支持epoll
         if (useEpoll()) {
+            //  如果当前系统支持epoll则选择的是nio中的EpollEventLoopGroup，否则选择默认的NioEventLoopGroup
             this.eventLoopGroupBoss = new EpollEventLoopGroup(1, new ThreadFactory() {
                 private AtomicInteger threadIndex = new AtomicInteger(0);
 
@@ -142,7 +145,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                     return new Thread(r, String.format("NettyNIOBoss_%d", this.threadIndex.incrementAndGet()));
                 }
             });
-
+          //RocketMq中的Netty解读：Netty 关键步骤2，设置并绑定Reactor线程池，Netty的Reactor线程池是EventLoopGroup
             this.eventLoopGroupSelector = new NioEventLoopGroup(nettyServerConfig.getServerSelectorThreads(), new ThreadFactory() {
                 private AtomicInteger threadIndex = new AtomicInteger(0);
                 private int threadTotal = nettyServerConfig.getServerSelectorThreads();
@@ -197,6 +200,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
         ServerBootstrap childHandler =
             this.serverBootstrap.group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
+                    //RocketMq中的Netty解读：Netty 关键步骤3，设置并绑定服务端Channel
                 .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
                 .option(ChannelOption.SO_BACKLOG, 1024)
                 .option(ChannelOption.SO_REUSEADDR, true)
@@ -205,6 +209,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                 .childOption(ChannelOption.SO_SNDBUF, nettyServerConfig.getServerSocketSndBufSize())
                 .childOption(ChannelOption.SO_RCVBUF, nettyServerConfig.getServerSocketRcvBufSize())
                 .localAddress(new InetSocketAddress(this.nettyServerConfig.getListenPort()))
+                    //RocketMq中的Netty：Netty 关键步骤4，5，创建并初始化ChannelPipeline，添加并设置ChannelHandler
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     public void initChannel(SocketChannel ch) throws Exception {
@@ -212,10 +217,14 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                             .addLast(defaultEventExecutorGroup, HANDSHAKE_HANDLER_NAME, handshakeHandler)
                             .addLast(defaultEventExecutorGroup,
                                 encoder,
+                                //mq对应的编码器和解码器的逻辑，他们分别覆盖了父类的**encode**和**decode**方法
                                 new NettyDecoder(),
+                                //Netty自带的心跳管理器
                                 new IdleStateHandler(0, 0, nettyServerConfig.getServerChannelMaxIdleTimeSeconds()),
+                               //连接管理器，他负责捕获新连接、连接断开、异常等事件，然后统一调度到NettyEventExecuter处理器处理。
                                 connectionManageHandler,
-                                serverHandler
+                                //当一个消息经过前面的解码等步骤后，然后调度到channelRead0方法，然后根据消息类型进行分发
+                                    serverHandler
                             );
                     }
                 });
@@ -225,6 +234,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
 
         try {
+            //RocketMq中的Netty解读：Netty 关键步骤6，绑定并启动监听端口
             ChannelFuture sync = this.serverBootstrap.bind().sync();
             InetSocketAddress addr = (InetSocketAddress) sync.channel().localAddress();
             this.port = addr.getPort();
@@ -412,15 +422,30 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 处理请求的核心操作Handler，内部封装注册了事件处理对应的对象
+     */
     @ChannelHandler.Sharable
     class NettyServerHandler extends SimpleChannelInboundHandler<RemotingCommand> {
 
+        //接受客户端的请求数据
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, RemotingCommand msg) throws Exception {
             processMessageReceived(ctx, msg);
         }
     }
 
+    /**
+     链接管理
+     NettyConnectManageHandler
+     继承ChannelDuplexHandler，netty的输入输入及写出的标准设计
+     将重点对服务的注册，链接激活，链接关闭，链接的检测，链接的操作异常进行管理
+     链接激活：如果本机的监听存在则设置到永久循环队列中，之间内部业务管理，事件为链接
+     激活关闭：如果本机的监听存在则设置到永久循环队列中，之间内部业务管理，事件为关闭
+     链接检测：如果本机的监听存在则设置到永久循环队列中，之间内部业务管理，事件为检测
+     异常操作：如果本机的监听存在则设置到永久循环队列中，之间内部业务管理，事件为异常
+     底层是基于无限循环的操作队列内容，对事件进行操作，基于接口设计，不同的服务端有不同的业务需求
+     */
     @ChannelHandler.Sharable
     class NettyConnectManageHandler extends ChannelDuplexHandler {
         @Override
@@ -442,7 +467,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
             log.info("NETTY SERVER PIPELINE: channelActive, the channel[{}]", remoteAddress);
             super.channelActive(ctx);
-
+            //处理连接的事件
             if (NettyRemotingServer.this.channelEventListener != null) {
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CONNECT, remoteAddress, ctx.channel()));
             }

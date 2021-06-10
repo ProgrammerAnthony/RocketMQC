@@ -27,6 +27,17 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ *  NettyEncoder
+ *         继承MessageToByteEncoder，netty的编码规范要求
+ *         将RemotingCommand的请求数据结构数据头：存数据的长度描述；数据体：存数据的内容
+ *             RemotingCommand的功能强大：涉及ByteBuffer的频繁操作，实现数据协议的转换
+ *             整体的协议格式：<length><header length><header data><body data>
+ *             1，4个字节的int型数据存储数据的总长度
+ *             2，4个字节的int型数据存储报文头的字节长度
+ *             3，存储的头部数据内容
+ *             4，存储的报文的数据内容
+ */
 @ChannelHandler.Sharable
 public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
@@ -35,10 +46,14 @@ public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
     public void encode(ChannelHandlerContext ctx, RemotingCommand remotingCommand, ByteBuf out)
         throws Exception {
         try {
+            //获得请求体消息头，封装为byte的协议要求
             ByteBuffer header = remotingCommand.encodeHeader();
+            //写入头
             out.writeBytes(header);
+            //获得消息体
             byte[] body = remotingCommand.getBody();
             if (body != null) {
+                //写入协议
                 out.writeBytes(body);
             }
         } catch (Exception e) {

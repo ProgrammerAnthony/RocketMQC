@@ -38,7 +38,7 @@ public class ShutdownHookThread extends Thread {
      * @param log The log instance is used in hook thread.
      * @param callback The call back function.
      */
-    public ShutdownHookThread(InternalLogger log, Callable callback) {
+    public  ShutdownHookThread(InternalLogger log, Callable callback) {
         super("ShutdownHook");
         this.log = log;
         this.callback = callback;

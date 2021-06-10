@@ -892,6 +892,7 @@ public class BrokerController {
             @Override
             public void run() {
                 try {
+                    //每隔一段时间就会发送一个注册请求
                     BrokerController.this.registerBrokerAll(true, false, brokerConfig.isForceRegister());
                 } catch (Throwable e) {
                     log.error("registerBrokerAll Exception", e);

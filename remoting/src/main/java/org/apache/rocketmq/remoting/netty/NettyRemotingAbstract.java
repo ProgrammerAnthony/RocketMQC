@@ -236,6 +236,7 @@ public abstract class NettyRemotingAbstract {
                             final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR,
                                 RemotingHelper.exceptionSimpleDesc(e));
                             response.setOpaque(opaque);
+                            //将数据返回给服务调用端
                             ctx.writeAndFlush(response);
                         }
                     }

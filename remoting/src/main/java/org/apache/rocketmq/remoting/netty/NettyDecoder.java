@@ -26,9 +26,23 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ NettyDecoder
+ 继承LengthFieldBasedFrameDecoder，netty的编码要求，该实现是基于长度的要求解决拆包粘包问题
+ 将ByteBuf的数据输入按照长度的要求，数据解码到ByteBuf的存储体内
+ 将netty封装的ByteBuf对象转换为java的Nio的ByteBuffer对象：ByteBuf.nioBuffer()
+ 所有的操作都是基于RemotingCommand的decode来实现
+ 解码的操作过程基于编码的规范来
+ 1，获得数据的最大有效位置
+ 2，获得第一个int位的值，该值为数据长度，包括头数据和报文数据
+ 3，byteBuffer操作获得头部的数据
+ 4，将数据的最大有效位置减去 4（标识），再减去头数据的长度，得到报文的长度
+ 5，根据报文长度，byteBuffer操作获得报文长度
+ */
 public class NettyDecoder extends LengthFieldBasedFrameDecoder {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
+    //基于长度的解码器，定义长度的标准，友好处理粘包及拆包
     private static final int FRAME_MAX_LENGTH =
         Integer.parseInt(System.getProperty("com.rocketmq.remoting.frameMaxLength", "16777216"));
 
@@ -40,13 +54,14 @@ public class NettyDecoder extends LengthFieldBasedFrameDecoder {
     public Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
         ByteBuf frame = null;
         try {
+            //基于父类的解码，共性操作
             frame = (ByteBuf) super.decode(ctx, in);
             if (null == frame) {
                 return null;
             }
-
+            //将netty的bytebuf转换为java标准的butebuffer
             ByteBuffer byteBuffer = frame.nioBuffer();
-
+            //按照编码协议，将结果转换为对象
             return RemotingCommand.decode(byteBuffer);
         } catch (Exception e) {
             log.error("decode exception, " + RemotingHelper.parseChannelRemoteAddr(ctx.channel()), e);
