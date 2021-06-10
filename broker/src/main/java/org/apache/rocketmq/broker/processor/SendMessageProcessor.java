@@ -65,6 +65,14 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         super(brokerController);
     }
 
+    /**
+     * SendMessageProcessor 实现了 NettyRequestProcessor 接口，并在接口方法processRequest（）
+     * 中处理接收到的请求，SendMessageProcessor在processRequest（）中调用了sendMessage（）方法来进行消息处理
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
                                           RemotingCommand request) throws RemotingCommandException {

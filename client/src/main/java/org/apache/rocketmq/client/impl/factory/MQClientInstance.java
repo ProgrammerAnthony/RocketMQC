@@ -647,6 +647,7 @@ public class MQClientInstance {
                                     Entry<String, MQProducerInner> entry = it.next();
                                     MQProducerInner impl = entry.getValue();
                                     if (impl != null) {
+                                        //更新本地路由表
                                         impl.updateTopicPublishInfo(topic, publishInfo);
                                     }
                                 }
