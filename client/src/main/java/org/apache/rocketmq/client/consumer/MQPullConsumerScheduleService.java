@@ -161,7 +161,9 @@ public class MQPullConsumerScheduleService {
     }
 
     public class PullTaskImpl implements Runnable {
+        //对于构造方法中的变量，设置为final
         private final MessageQueue messageQueue;
+        //可变字段，注意volatile
         private volatile boolean cancelled = false;
 
         public PullTaskImpl(final MessageQueue messageQueue) {
