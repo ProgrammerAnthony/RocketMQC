@@ -455,12 +455,19 @@ public class RouteInfoManager {
                 RemotingUtil.closeChannel(next.getValue().getChannel());
                 it.remove();
                 log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
-                //心跳机制：会把这个broker从路由数据表里剔除出去
+                //心跳机制：会把这个broker从路由数据表里剔除出去(将下线的broker的信息)
                 this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
             }
         }
     }
 
+    /**
+     * 使用HashMap定义了topicQueueTable、brokerAddrTable、clusterAddrTable、clusterAddrTable、filterServerTable
+     * 在onChannelDestroy方法里头使用读写锁对这些map进行并发控制
+     * 首先找事件channel对应的broker信息，然后将其从brokerLiveTable、filterServerTable、brokerAddrTable、clusterAddrTable、topicQueueTable中移除
+     * @param remoteAddr
+     * @param channel
+     */
     public void onChannelDestroy(String remoteAddr, Channel channel) {
         String brokerAddrFound = null;
         if (channel != null) {
