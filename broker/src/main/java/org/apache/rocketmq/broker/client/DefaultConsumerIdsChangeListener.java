@@ -31,6 +31,15 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
         this.brokerController = brokerController;
     }
 
+
+    /**
+     * 当消费者上线(ConsumerManager.registerConsumer)时，如果是新客户端连接，
+     * 或者消费者订阅的topic列表发生了改变时，就会触发ConsumerIdsChangeListener的CHANGE事件；
+     * 另外，当消费者下线(ConsumerManager.unregisterConsumer)时，也会触发CHANGE事件。
+     * @param event
+     * @param group
+     * @param args
+     */
     @Override
     public void handle(ConsumerGroupEvent event, String group, Object... args) {
         if (event == null) {

@@ -48,6 +48,13 @@ import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 /**
  * Store all metadata downtime for recovery, data protection reliability
  */
+
+/**
+ * 消息主体以及元数据的存储主体，存储Producer端写入的消息主体内容,消息内容不是定长的。
+ * 单个文件大小默认1G ，文件名长度为20位，左边补零，剩余为起始偏移量，比如00000000000000000000代表了第一个文件，
+ * 起始偏移量为0，文件大小为1G=1073741824；
+ * 当第一个文件写满了，第二个文件为00000000001073741824，起始偏移量为1073741824，以此类推。消息主要是顺序写入日志文件，当文件满了，写入下一个文件；
+ */
 public class CommitLog {
     // Message's MAGIC CODE daa320a7
     public final static int MESSAGE_MAGIC_CODE = -626843481;

@@ -19,6 +19,10 @@ package org.apache.rocketmq.broker.client;
 import io.netty.channel.Channel;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
+/**
+ * 对于每一个客户端，会根据clientID和连接对象Channel关联到一个ClientChannelInfo，用于标识该客户端实例。
+ * 获得生产者和消费者信息后，就会调用用ConsumerManager和ProducerManager注册消费者和生产者。
+ */
 public class ClientChannelInfo {
     private final Channel channel;
     private final String clientId;

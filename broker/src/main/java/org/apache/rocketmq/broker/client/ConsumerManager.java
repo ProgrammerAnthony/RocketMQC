@@ -33,6 +33,9 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+/**
+ * 主要持有每个Group对应的ConsumerGroupInfo，用于存储消费者的连接和订阅信息；以及一个ConsumerIdsChangeListener，用于监听消费者变化情况。
+ */
 public class ConsumerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
@@ -45,8 +48,10 @@ public class ConsumerManager {
     }
 
     public ClientChannelInfo findChannel(final String group, final String clientId) {
+        //通过group名获取对应的ConsumerGroup信息
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(group);
         if (consumerGroupInfo != null) {
+            //根据clientId，查找对应的channel
             return consumerGroupInfo.findChannel(clientId);
         }
         return null;

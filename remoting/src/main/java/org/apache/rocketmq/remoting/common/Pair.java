@@ -16,6 +16,11 @@
  */
 package org.apache.rocketmq.remoting.common;
 
+/**
+ * 这种相关对象通过Pair链接在一起的情况可以学习
+ * @param <T1>
+ * @param <T2>
+ */
 public class Pair<T1, T2> {
     private T1 object1;
     private T2 object2;

@@ -240,6 +240,7 @@ public class BrokerController {
 
         if (result) {
             try {
+                //消息存储
                 this.messageStore =
                     new DefaultMessageStore(this.messageStoreConfig, this.brokerStatsManager, this.messageArrivingListener,
                         this.brokerConfig);
