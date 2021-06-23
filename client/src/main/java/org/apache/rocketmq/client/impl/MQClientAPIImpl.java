@@ -735,7 +735,7 @@ public class MQClientAPIImpl {
     }
 
     /**
-     * 通过netty拉取对应消息，将消息通过pullcallback进行处理
+     * 通过netty拉取对应消息，将消息通过pullcallback进行回调处理
      * @param addr
      * @param request
      * @param timeoutMillis

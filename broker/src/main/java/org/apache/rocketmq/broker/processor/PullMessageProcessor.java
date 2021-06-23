@@ -431,7 +431,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                         int queueId = requestHeader.getQueueId();
                         PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
                             this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
-                        //其实就是将ManyPullRequest进行了封装
+                        //其实就是将ManyPullRequest进行了封装，PullRequestHoldService每隔5秒轮训一次，用于支持轮训机制。ManyPullRequest代表累计拉取消息任务
                         this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
                         response = null;
                         break;
