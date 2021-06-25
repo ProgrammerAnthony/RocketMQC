@@ -54,14 +54,14 @@ public class NettyDecoder extends LengthFieldBasedFrameDecoder {
     public Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
         ByteBuf frame = null;
         try {
-            //基于父类的解码，共性操作
+            //基于父类的解码，共性操作,解决拆包粘包问题
             frame = (ByteBuf) super.decode(ctx, in);
             if (null == frame) {
                 return null;
             }
             //将netty的bytebuf转换为java标准的butebuffer
             ByteBuffer byteBuffer = frame.nioBuffer();
-            //按照编码协议，将结果转换为对象
+            //按照编码协议，将结果转换为对象RemotingCommand，封装ByteBuf的字节到RemotingCommand中去
             return RemotingCommand.decode(byteBuffer);
         } catch (Exception e) {
             log.error("decode exception, " + RemotingHelper.parseChannelRemoteAddr(ctx.channel()), e);

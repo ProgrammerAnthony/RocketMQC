@@ -298,7 +298,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * 添加所有processor
+     * 添加所有processor到hashmap中去
      * @param requestCode
      * @param processor
      * @param executor
@@ -381,6 +381,9 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
             // mark the current position so that we can peek the first byte to determine if the content is starting with
             // TLS handshake
+            // markReaderIndex和resetReaderIndex是一个成对的操作。markReaderIndex可以打一个标记，
+            // 调用resetReaderIndex可以把readerIndex重置到原来打标记的位置。
+
             msg.markReaderIndex();
 
             byte b = msg.getByte(0);
