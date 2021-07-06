@@ -19,10 +19,10 @@
 <configuration>
     <appender name="DefaultAppender"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/Users/anthony/iCloud Drive (Archive)/Desktop/my company/RocketMQ/logs/rocketmqlogs/namesrv_default.log</file>
+        <file>/Users/anthony/Desktop/RocketMQ/rocketmq-running-folder/logs/rocketmqlogs/namesrv_default.log</file>
         <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-            <fileNamePattern>/Users/anthony/iCloud Drive (Archive)/Desktop/my company/RocketMQ/logs/rocketmqlogs/otherdays/namesrv_default.%i.log.gz</fileNamePattern>
+            <fileNamePattern>/Users/anthony/Desktop/RocketMQ/rocketmq-running-folder/logs/rocketmqlogs/otherdays/namesrv_default.%i.log.gz</fileNamePattern>
             <minIndex>1</minIndex>
             <maxIndex>5</maxIndex>
         </rollingPolicy>
@@ -38,10 +38,10 @@
 
     <appender name="RocketmqNamesrvAppender_inner"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/Users/anthony/iCloud Drive (Archive)/Desktop/my company/RocketMQ/logs/rocketmqlogs/namesrv.log</file>
+        <file>/Users/anthony/Desktop/RocketMQ/rocketmq-running-folder/logs/rocketmqlogs/namesrv.log</file>
         <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-            <fileNamePattern>/Users/anthony/iCloud Drive (Archive)/Desktop/my company/RocketMQ/logs/rocketmqlogs/otherdays/namesrv.%i.log.gz</fileNamePattern>
+            <fileNamePattern>/Users/anthony/Desktop/RocketMQ/rocketmq-running-folder/logs/rocketmqlogs/otherdays/namesrv.%i.log.gz</fileNamePattern>
             <minIndex>1</minIndex>
             <maxIndex>5</maxIndex>
         </rollingPolicy>
