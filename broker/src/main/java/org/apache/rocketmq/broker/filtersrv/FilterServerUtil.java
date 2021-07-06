@@ -21,6 +21,11 @@ package org.apache.rocketmq.broker.filtersrv;
 import org.apache.rocketmq.logging.InternalLogger;
 
 public class FilterServerUtil {
+    /**
+     * 执行脚本文件
+     * @param shellString
+     * @param log
+     */
     public static void callShell(final String shellString, final InternalLogger log) {
         Process process = null;
         try {

@@ -69,6 +69,7 @@ public class FilterServerManager {
             this.brokerController.getBrokerConfig().getFilterServerNums() - this.filterServerTable.size();
         String cmd = this.buildStartCommand();
         for (int i = 0; i < more; i++) {
+            //执行脚本文件
             FilterServerUtil.callShell(cmd, log);
         }
     }
