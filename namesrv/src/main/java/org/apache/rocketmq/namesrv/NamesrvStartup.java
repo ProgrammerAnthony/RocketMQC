@@ -143,6 +143,7 @@ public class NamesrvStartup {
             System.exit(-3);
         }
 
+        //添加关闭的钩子，在关闭的时候会调用controller.shutdown();
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {

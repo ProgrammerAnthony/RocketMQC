@@ -58,6 +58,9 @@ import org.apache.rocketmq.remoting.netty.AsyncNettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * AsyncNettyRequestProcessor是抽象类，但是通过一个asyncProcessRequest方法调用了父接口的processRequest方法，processRequest任然交给子类实现
+ */
 public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     private static InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
