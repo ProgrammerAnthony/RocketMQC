@@ -27,11 +27,11 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 /**
- NettyDecoder
+ NettyDecoder所有的操作都是基于RemotingCommand的decode来实现
  继承LengthFieldBasedFrameDecoder，netty的编码要求，该实现是基于长度的要求解决拆包粘包问题
  将ByteBuf的数据输入按照长度的要求，数据解码到ByteBuf的存储体内
  将netty封装的ByteBuf对象转换为java的Nio的ByteBuffer对象：ByteBuf.nioBuffer()
- 所有的操作都是基于RemotingCommand的decode来实现
+
  解码的操作过程基于编码的规范来
  1，获得数据的最大有效位置
  2，获得第一个int位的值，该值为数据长度，包括头数据和报文数据
