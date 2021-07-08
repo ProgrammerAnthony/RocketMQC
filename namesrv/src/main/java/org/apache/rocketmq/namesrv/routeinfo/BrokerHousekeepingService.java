@@ -24,7 +24,7 @@ import org.apache.rocketmq.namesrv.NamesrvController;
 import org.apache.rocketmq.remoting.ChannelEventListener;
 
 /**
- * 实现了ChannelEventListener接口，除了onChannelConnect外，其余各个方法均委托给namesrvController的routeInfoManager的onChannelDestroy方法
+ * 用于处理channel关闭连接异常空闲事件，实现了ChannelEventListener接口，除了onChannelConnect外，其余各个方法均委托给NamesrvController的routeInfoManager的onChannelDestroy方法
  */
 public class BrokerHousekeepingService implements ChannelEventListener {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);

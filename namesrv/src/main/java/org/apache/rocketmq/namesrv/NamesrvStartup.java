@@ -151,6 +151,7 @@ public class NamesrvStartup {
             }
         }));
 
+        //底层启动netty实例
         controller.start();
 
         return controller;

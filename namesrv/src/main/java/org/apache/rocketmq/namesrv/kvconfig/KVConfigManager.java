@@ -33,6 +33,7 @@ public class KVConfigManager {
 
     private final NamesrvController namesrvController;
 
+    //使用读写锁提升读写性能，配置信息一般读多写少，提高并发读的性能
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable =
         new HashMap<String, HashMap<String, String>>();

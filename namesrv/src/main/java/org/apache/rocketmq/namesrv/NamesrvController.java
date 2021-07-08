@@ -89,7 +89,7 @@ public class NamesrvController {
 
             @Override
             public void run() {
-                //心跳机制：定时扫描不活跃的broker
+                //心跳机制：每隔10s，定时扫描不活跃的broker
                 NamesrvController.this.routeInfoManager.scanNotActiveBroker();
             }
         }, 5, 10, TimeUnit.SECONDS);
