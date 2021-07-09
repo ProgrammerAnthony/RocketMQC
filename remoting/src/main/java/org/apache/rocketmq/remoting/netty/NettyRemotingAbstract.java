@@ -155,9 +155,11 @@ public abstract class NettyRemotingAbstract {
         if (cmd != null) {
             switch (cmd.getType()) {
                 case REQUEST_COMMAND:
+                    //请求处理
                     processRequestCommand(ctx, cmd);
                     break;
                 case RESPONSE_COMMAND:
+                    //响应处理
                     processResponseCommand(ctx, cmd);
                     break;
                 default:
@@ -221,10 +223,12 @@ public abstract class NettyRemotingAbstract {
                                 }
                             }
                         };
+                        //异步消息处理
                         if (pair.getObject1() instanceof AsyncNettyRequestProcessor) {
                             AsyncNettyRequestProcessor processor = (AsyncNettyRequestProcessor)pair.getObject1();
                             processor.asyncProcessRequest(ctx, cmd, callback);
                         } else {
+                            //同步消息处理
                             NettyRequestProcessor processor = pair.getObject1();
                             RemotingCommand response = processor.processRequest(ctx, cmd);
                             callback.callback(response);
@@ -308,6 +312,7 @@ public abstract class NettyRemotingAbstract {
 
     /**
      * 在callback的executor里执行对应的callback，如果为空，则在当前线程里运行
+     * 调用invokeCallback.operationComplete方法，operationComplete方法在pull，query，send三个消息场景里都有对应的实现
      */
     private void executeInvokeCallback(final ResponseFuture responseFuture) {
         boolean runInThisThread = false;
@@ -432,6 +437,8 @@ public abstract class NettyRemotingAbstract {
                 }
             });
 
+            //同步等待结果返回，通过 countDownLatch.await(timeoutMillis);实现，对应 responseFuture.putResponse会执行对应对的countDownLatch.countDown();
+            //而对应的消息响应处理processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd)会调用responseFuture.putResponse
             RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
             if (null == responseCommand) {
                 if (responseFuture.isSendRequestOK()) {
@@ -541,11 +548,22 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
+    /**
+     * 单向发送消息，不处理response
+     * @param channel
+     * @param request
+     * @param timeoutMillis
+     * @throws InterruptedException
+     * @throws RemotingTooMuchRequestException
+     * @throws RemotingTimeoutException
+     * @throws RemotingSendRequestException
+     */
     public void invokeOnewayImpl(final Channel channel, final RemotingCommand request, final long timeoutMillis)
         throws InterruptedException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {
         request.markOnewayRPC();
         boolean acquired = this.semaphoreOneway.tryAcquire(timeoutMillis, TimeUnit.MILLISECONDS);
         if (acquired) {
+            //通过信号量处理一次发送消息的消息数
             final SemaphoreReleaseOnlyOnce once = new SemaphoreReleaseOnlyOnce(this.semaphoreOneway);
             try {
                 channel.writeAndFlush(request).addListener(new ChannelFutureListener() {

@@ -28,13 +28,16 @@ public class ResponseFuture {
     private final int opaque;
     private final Channel processChannel;
     private final long timeoutMillis;
+    //invokeCallback 用于处理异步的callback
     private final InvokeCallback invokeCallback;
     private final long beginTimestamp = System.currentTimeMillis();
+    //countDownLatch用于实现同步等待
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private final SemaphoreReleaseOnlyOnce once;
 
     private final AtomicBoolean executeCallbackOnlyOnce = new AtomicBoolean(false);
+    //RemotingCommand在消息传输过程中对所有数据内容的封装
     private volatile RemotingCommand responseCommand;
     private volatile boolean sendRequestOK = true;
     private volatile Throwable cause;

@@ -68,6 +68,11 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * NettyRemotingClient和NettyRemotingServer是netty处理的核心：继承的NettyRemotingAbstract主要实现了一些Netty的同步，异步和单向消息的封装
+ * 实现的RemotingClient是对应的所有通信的接口
+ *
+ */
 public class NettyRemotingClient extends NettyRemotingAbstract implements RemotingClient {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
@@ -148,6 +153,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         return Math.abs(r.nextInt() % 999) % 999;
     }
 
+    /**
+     * 主要进行netty初始化
+     */
     @Override
     public void start() {
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
@@ -182,11 +190,13 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                     }
                     pipeline.addLast(
                         defaultEventExecutorGroup,
+                        // 消息编码
                         new NettyEncoder(),
+                        // 消息解码
                         new NettyDecoder(),
                         new IdleStateHandler(0, 0, nettyClientConfig.getClientChannelMaxIdleTimeSeconds()),
                         new NettyConnectManageHandler(),
-                        //在这里处理接收消息
+                        //接收消息：添加对应的ChannelInboundHandler子类到ChannelPipeline
                         new NettyClientHandler());
                 }
             });
@@ -661,7 +671,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     class NettyClientHandler extends SimpleChannelInboundHandler<RemotingCommand> {
 
         /**
-         * 封装将message转化为RemotingCommand的实现
+         * 通过继承SimpleChannelInboundHandler，封装将message转化为RemotingCommand的实现
          * @param ctx
          * @param msg
          * @throws Exception
@@ -673,7 +683,8 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * ChannelDuplexHandler 继承实现了ChannelInboundHandler和ChannelOutboundHandler，可以处理连接和断开等事件
+     * 处理Netty连接管理
+     * ChannelDuplexHandler 继承结合实现了ChannelInboundHandler和ChannelOutboundHandler，可以处理连接和断开等事件
      * 这里主要是将Netty连接断开等事件放入LinkedBlockingQueue中，然后触发对应listener的对应事件，如ChannelEventListener的onChannelConnect事件
      */
     class NettyConnectManageHandler extends ChannelDuplexHandler {

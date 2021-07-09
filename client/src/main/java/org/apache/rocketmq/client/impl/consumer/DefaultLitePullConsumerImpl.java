@@ -145,6 +145,7 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
     public DefaultLitePullConsumerImpl(final DefaultLitePullConsumer defaultLitePullConsumer, final RPCHook rpcHook) {
         this.defaultLitePullConsumer = defaultLitePullConsumer;
         this.rpcHook = rpcHook;
+        //PullThreadNums默认20个拉取线程
         this.scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(
             this.defaultLitePullConsumer.getPullThreadNums(),
             new ThreadFactoryImpl("PullMsgThread-" + this.defaultLitePullConsumer.getConsumerGroup())
@@ -199,10 +200,12 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
             switch (messageModel) {
                 case BROADCASTING:
                     updateAssignedMessageQueue(topic, mqAll);
+                    //在队列改变的时候进行拉取，会执行scheduledThreadPoolExecutor的线程
                     updatePullTask(topic, mqAll);
                     break;
                 case CLUSTERING:
                     updateAssignedMessageQueue(topic, mqDivided);
+                    //在队列改变的时候进行拉取，会执行scheduledThreadPoolExecutor的线程
                     updatePullTask(topic, mqDivided);
                     break;
                 default:

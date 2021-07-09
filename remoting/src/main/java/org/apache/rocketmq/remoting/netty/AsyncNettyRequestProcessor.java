@@ -22,6 +22,8 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 /**
  * 抽象类，但是通过一个asyncProcessRequest方法调用了父接口的processRequest方法，processRequest任然交给子类实现
+ * AsyncNettyRequestProcessor的子类包括：直接子类主要是AbstractSendMessageProcessor，以及其他子类
+ * AsyncNettyRequestProcessor区别于NettyRequestProcessor主要是添加了异步的回调处理
  */
 public abstract class AsyncNettyRequestProcessor implements NettyRequestProcessor {
 

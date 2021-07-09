@@ -217,7 +217,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                             .addLast(defaultEventExecutorGroup, HANDSHAKE_HANDLER_NAME, handshakeHandler)
                             .addLast(defaultEventExecutorGroup,
                                 encoder,
-                                //mq对应的编码器和解码器的逻辑，他们分别覆盖了父类的**encode**和**decode**方法
+                                //mq对应的编码器和解码器的逻辑，他们分别覆盖了父类的encode和decode方法
                                 new NettyDecoder(),
                                 //Netty自带的心跳管理器
                                 new IdleStateHandler(0, 0, nettyServerConfig.getServerChannelMaxIdleTimeSeconds()),
@@ -298,7 +298,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * 添加所有processor到hashmap中去
+     * 添加所有processor到hashmap中去，注意processorTable定义为final类型
      * @param requestCode
      * @param processor
      * @param executor
@@ -382,7 +382,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             // mark the current position so that we can peek the first byte to determine if the content is starting with
             // TLS handshake
             // markReaderIndex和resetReaderIndex是一个成对的操作。markReaderIndex可以打一个标记，
-            // 调用resetReaderIndex可以把readerIndex重置到原来打标记的位置。
+            // 调用resetReaderIndex可以把readerIndex重置到原来打标记的位置这里实现预读byte获取tlsMode
 
             msg.markReaderIndex();
 
