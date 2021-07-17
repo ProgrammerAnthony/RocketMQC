@@ -71,7 +71,8 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 /**
  * PullMessageProcessor其实是继承了NettyRequestProcessor接口既然继承了这个接口，消息拉取处理器
- * PullMessageProcessor主要的工作是根据客户端提供的offset，从ConsumeQueue中获取到该topic-queueId在CommitLog中的起始位置，每次读取消息都会从ConsumeQueue中尽可能多的读取消息，并计算出客户端下次的offset,把结果返回
+ * PullMessageProcessor主要的工作是根据客户端提供的offset，从ConsumeQueue中获取到该topic-queueId在CommitLog中的起始位置，
+ * 每次读取消息都会从ConsumeQueue中尽可能多的读取消息，并计算出客户端下次的offset,把结果返回
  */
 public class PullMessageProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -93,6 +94,16 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         return false;
     }
 
+    /**
+     * 消费者会不停的从PullRequest的队列里取request然后向broker请求消息，得到broker的响应后会做相应处理并把PullRequest放回队列以便下一次请求
+     * broker在查不到消息的情况下会hold住请求，在ReputMessageService不停构建ConsumeQueue的时候，会拿出hold住的请求进行二次处理
+     *
+     * @param channel
+     * @param request
+     * @param brokerAllowSuspend
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend)
         throws RemotingCommandException {
         RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
@@ -422,6 +433,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
 
                     if (brokerAllowSuspend && hasSuspendFlag) {
                         long pollingTimeMills = suspendTimeoutMillisLong;
+                        // 如果broker开启了长轮询，则将长轮询时间设置为30s(消费者传过来的，默认30s)，否则设置为1s
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                             pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
                         }
@@ -429,6 +441,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                         String topic = requestHeader.getTopic();
                         long offset = requestHeader.getQueueOffset();
                         int queueId = requestHeader.getQueueId();
+                        // 将这次请求的信息包括channel全部封装到PullRequest，并保存到pullRequestTable，即把当前的request hold住
                         PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
                             this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
                         //其实就是将ManyPullRequest进行了封装，PullRequestHoldService每隔5秒轮训一次，用于支持轮训机制。ManyPullRequest代表累计拉取消息任务
