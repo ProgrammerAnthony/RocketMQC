@@ -43,12 +43,17 @@ public class TransactionListenerImpl implements TransactionListener {
         if (null != status) {
             switch (status) {
                 case 0:
+                    System.out.println(" LocalTransactionState.UNKNOW");
                     return LocalTransactionState.UNKNOW;
                 case 1:
+                    System.out.println("  LocalTransactionState.COMMIT_MESSAGE");
                     return LocalTransactionState.COMMIT_MESSAGE;
                 case 2:
+                    System.out.println("  LocalTransactionState.ROLLBACK_MESSAGE");
                     return LocalTransactionState.ROLLBACK_MESSAGE;
                 default:
+                    System.out.println("  LocalTransactionState.COMMIT_MESSAGE");
+
                     return LocalTransactionState.COMMIT_MESSAGE;
             }
         }
