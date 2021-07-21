@@ -60,16 +60,20 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
     private ConcurrentHashMap<MessageQueue, MessageQueue> opQueueMap = new ConcurrentHashMap<>();
 
+    //记录下消息原来的主题和队列 ，并将主题变更为RMQ_SYS_TRANS_HALF_TOPIC，然后当作普通消息存储到commitlog
+    //这里配合CompletableFuture.completedFuture完成异步处理
     @Override
     public CompletableFuture<PutMessageResult> asyncPrepareMessage(MessageExtBrokerInner messageInner) {
         return transactionalMessageBridge.asyncPutHalfMessage(messageInner);
     }
 
+    //记录下消息原来的主题和队列 ，并将主题变更为RMQ_SYS_TRANS_HALF_TOPIC，然后当作普通消息存储到commitlog
     @Override
     public PutMessageResult prepareMessage(MessageExtBrokerInner messageInner) {
         return transactionalMessageBridge.putHalfMessage(messageInner);
     }
 
+    //超过最大回查次数，则丢弃消息
     private boolean needDiscard(MessageExt msgExt, int transactionCheckMax) {
         String checkTimes = msgExt.getProperty(MessageConst.PROPERTY_TRANSACTION_CHECK_TIMES);
         int checkTime = 1;

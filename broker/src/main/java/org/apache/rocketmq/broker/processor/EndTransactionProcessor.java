@@ -41,6 +41,8 @@ import org.apache.rocketmq.store.config.BrokerRole;
 
 /**
  * EndTransaction processor: process commit and rollback message
+ *
+ * 事务消息：broker处理producer提交的提交/回滚消息
  */
 public class EndTransactionProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
@@ -124,10 +126,12 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
         }
         OperationResult result = new OperationResult();
         if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
+            //获取对应half消息的物理偏移量等信息
             result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
                 if (res.getCode() == ResponseCode.SUCCESS) {
+                    //这里主要获取原来的topic和queue信息，恢复原主题
                     MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
                     msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
                     msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
@@ -136,6 +140,7 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
                     MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_TRANSACTION_PREPARED);
                     RemotingCommand sendResult = sendFinalMessage(msgInner);
                     if (sendResult.getCode() == ResponseCode.SUCCESS) {
+                        //删除half消息，逻辑删除，通过添加消息到RMQ_SYS_TRANS_OP_HALF_TOPIC主题
                         this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
                     }
                     return sendResult;
@@ -147,6 +152,7 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
                 if (res.getCode() == ResponseCode.SUCCESS) {
+                    //删除half消息，逻辑删除，通过添加消息到RMQ_SYS_TRANS_OP_HALF_TOPIC主题
                     this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
                 }
                 return res;

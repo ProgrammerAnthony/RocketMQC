@@ -295,6 +295,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         CompletableFuture<PutMessageResult> putMessageResult = null;
         Map<String, String> origProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        //发送half消息的配置，从requestHeader中获取PROPERTY_TRANSACTION_PREPARED属性
         String transFlag = origProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         if (transFlag != null && Boolean.parseBoolean(transFlag)) {
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
