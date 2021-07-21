@@ -89,6 +89,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         return false;
     }
 
+    //如果事务消息超过文件的过期时间，默认为72小时，则跳过该消息
     private boolean needSkip(MessageExt msgExt) {
         long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp();
         if (valueOfCurrentMinusBorn
@@ -99,6 +100,152 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             return true;
         }
         return false;
+    }
+
+    /**
+     * Traverse uncommitted/unroll back half message and send check back request to producer to obtain transaction
+     * status.
+     *
+     * @param transactionTimeout The minimum time of the transactional message to be checked firstly, one message only
+     * exceed this time interval that can be checked.
+     * @param transactionCheckMax The maximum number of times the message was checked, if exceed this value, this
+     * message will be discarded.
+     * @param listener When the message is considered to be checked or discarded, the relative method of this class will
+     * be invoked.
+     */
+    @Override
+    public void check(long transactionTimeout, int transactionCheckMax,
+                      AbstractTransactionalMessageCheckListener listener) {
+        try {
+            //获取RMQ_SYS_TRANS_HALF_TOPIC主题下的所有消息队列
+            String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
+            Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
+            if (msgQueues == null || msgQueues.size() == 0) {
+                log.warn("The queue of topic is empty :" + topic);
+                return;
+            }
+            log.debug("Check topic={}, queues={}", topic, msgQueues);
+            for (MessageQueue messageQueue : msgQueues) {
+                long startTime = System.currentTimeMillis();
+                //获取已经处理的消息队列RMQ_SYS_TRANS_OP_HALF_TOPIC
+                MessageQueue opQueue = getOpQueue(messageQueue);
+                long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
+                long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
+                log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
+                if (halfOffset < 0 || opOffset < 0) {
+                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
+                            halfOffset, opOffset);
+                    continue;
+                }
+
+                List<Long> doneOpOffset = new ArrayList<>();
+                HashMap<Long, Long> removeMap = new HashMap<>();
+                PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
+                if (null == pullResult) {
+                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
+                            messageQueue, halfOffset, opOffset);
+                    continue;
+                }
+                // single thread
+                int getMessageNullCount = 1;
+                long newOffset = halfOffset;
+                long i = halfOffset;//当前处理消息的队列偏移量
+                while (true) {
+                    if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) { //每个队列的事务状态回查不能超过60s
+                        log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
+                        break;
+                    }
+                    if (removeMap.containsKey(i)) {  //如果该消息已经被处理，则处理下一条消息
+                        log.info("Half offset {} has been committed/rolled back", i);
+                        Long removedOpOffset = removeMap.remove(i);
+                        doneOpOffset.add(removedOpOffset);
+                    } else {
+                        GetResult getResult = getHalfMsg(messageQueue, i); //根据消息队列偏移量，从消费队列中获取消息
+                        MessageExt msgExt = getResult.getMsg();
+                        if (msgExt == null) { //如果没有拉取到消息，可以重试，超过重试次数，直接退出
+                            if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
+                                break;
+                            }
+                            //如果没有拉取到消息，可以重试，返回空，则结束消息队列的状态回查
+                            if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
+                                log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
+                                        messageQueue, getMessageNullCount, getResult.getPullResult());
+                                break;
+                            } else {
+                                log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
+                                        i, messageQueue, getMessageNullCount, getResult.getPullResult());
+                                i = getResult.getPullResult().getNextBeginOffset();
+                                newOffset = i;
+                                continue;
+                            }
+                        }
+
+                        if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) { //判断该消息是否需要discard、skip
+                            listener.resolveDiscardMsg(msgExt);
+                            newOffset = i + 1;
+                            i++;
+                            continue;
+                        }
+                        if (msgExt.getStoreTimestamp() >= startTime) {
+                            log.debug("Fresh stored. the miss offset={}, check it later, store={}", i,
+                                    new Date(msgExt.getStoreTimestamp()));
+                            break;
+                        }
+
+                        long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp(); //消息已存储的时间
+                        long checkImmunityTime = transactionTimeout;//立即检测事务消息的时间
+                        String checkImmunityTimeStr = msgExt.getUserProperty(MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS);
+                        if (null != checkImmunityTimeStr) { //回查请求最晚时间：只有在这个时间内，收到的回查消息才有效。
+                            checkImmunityTime = getImmunityTime(checkImmunityTimeStr, transactionTimeout);
+                            if (valueOfCurrentMinusBorn < checkImmunityTime) {
+                                if (checkPrepareQueueOffset(removeMap, doneOpOffset, msgExt)) {
+                                    newOffset = i + 1;
+                                    i++;
+                                    continue;
+                                }
+                            }
+                        } else { //如果当前时间还未过，应用程序事务结束时间，则跳出本次处理
+                            if ((0 <= valueOfCurrentMinusBorn) && (valueOfCurrentMinusBorn < checkImmunityTime)) {
+                                log.debug("New arrived, the miss offset={}, check it later checkImmunity={}, born={}", i,
+                                        checkImmunityTime, new Date(msgExt.getBornTimestamp()));
+                                break;
+                            }
+                        }
+                        List<MessageExt> opMsg = pullResult.getMsgFoundList();
+                        boolean isNeedCheck = (opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime)
+                                || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
+                                || (valueOfCurrentMinusBorn <= -1);
+                        //判断是否需要发送事务回查消息
+                        if (isNeedCheck) {
+                            if (!putBackHalfMsgQueue(msgExt, i)) {
+                                //如果需要发送事务状态回查消息，则先将消息再次发送到RMQ_SYS_TRANS_HALF_TOPIC
+                                continue;
+                            }
+                            //发送具体的事务回查指令：保证异步处理，RocketMQ的存储设计采用顺序写。如何避免重复？通过OP队列中的消息来避免
+                            listener.resolveHalfMsg(msgExt);
+                        } else {
+                            pullResult = fillOpRemoveMap(removeMap, opQueue, pullResult.getNextBeginOffset(), halfOffset, doneOpOffset);
+                            //如果不能判断是否发送回查消息，则拉取更多的已处理消息进行筛选
+                            log.debug("The miss offset:{} in messageQueue:{} need to get more opMsg, result is:{}", i,
+                                    messageQueue, pullResult);
+                            continue;
+                        }
+                    }
+                    newOffset = i + 1;
+                    i++;
+                }
+                if (newOffset != halfOffset) { //保存prepare消息队列的回查进度
+                    transactionalMessageBridge.updateConsumeOffset(messageQueue, newOffset);
+                }
+                long newOpOffset = calculateOpOffset(doneOpOffset, opOffset);
+                if (newOpOffset != opOffset) { //保存处理队列的进度
+                    transactionalMessageBridge.updateConsumeOffset(opQueue, newOpOffset);
+                }
+            }
+        } catch (Throwable e) {
+            log.error("Check error", e);
+        }
+
     }
 
     private boolean putBackHalfMsgQueue(MessageExt msgExt, long offset) {
@@ -127,135 +274,6 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         }
     }
 
-    @Override
-    public void check(long transactionTimeout, int transactionCheckMax,
-        AbstractTransactionalMessageCheckListener listener) {
-        try {
-            String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
-            Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
-            if (msgQueues == null || msgQueues.size() == 0) {
-                log.warn("The queue of topic is empty :" + topic);
-                return;
-            }
-            log.debug("Check topic={}, queues={}", topic, msgQueues);
-            for (MessageQueue messageQueue : msgQueues) {
-                long startTime = System.currentTimeMillis();
-                MessageQueue opQueue = getOpQueue(messageQueue);
-                long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
-                long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
-                log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
-                if (halfOffset < 0 || opOffset < 0) {
-                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
-                        halfOffset, opOffset);
-                    continue;
-                }
-
-                List<Long> doneOpOffset = new ArrayList<>();
-                HashMap<Long, Long> removeMap = new HashMap<>();
-                PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
-                if (null == pullResult) {
-                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
-                        messageQueue, halfOffset, opOffset);
-                    continue;
-                }
-                // single thread
-                int getMessageNullCount = 1;
-                long newOffset = halfOffset;
-                long i = halfOffset;
-                while (true) {
-                    if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) {
-                        log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
-                        break;
-                    }
-                    if (removeMap.containsKey(i)) {
-                        log.info("Half offset {} has been committed/rolled back", i);
-                        Long removedOpOffset = removeMap.remove(i);
-                        doneOpOffset.add(removedOpOffset);
-                    } else {
-                        GetResult getResult = getHalfMsg(messageQueue, i);
-                        MessageExt msgExt = getResult.getMsg();
-                        if (msgExt == null) {
-                            if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
-                                break;
-                            }
-                            if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
-                                log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
-                                    messageQueue, getMessageNullCount, getResult.getPullResult());
-                                break;
-                            } else {
-                                log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
-                                    i, messageQueue, getMessageNullCount, getResult.getPullResult());
-                                i = getResult.getPullResult().getNextBeginOffset();
-                                newOffset = i;
-                                continue;
-                            }
-                        }
-
-                        if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) {
-                            listener.resolveDiscardMsg(msgExt);
-                            newOffset = i + 1;
-                            i++;
-                            continue;
-                        }
-                        if (msgExt.getStoreTimestamp() >= startTime) {
-                            log.debug("Fresh stored. the miss offset={}, check it later, store={}", i,
-                                new Date(msgExt.getStoreTimestamp()));
-                            break;
-                        }
-
-                        long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp();
-                        long checkImmunityTime = transactionTimeout;
-                        String checkImmunityTimeStr = msgExt.getUserProperty(MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS);
-                        if (null != checkImmunityTimeStr) {
-                            checkImmunityTime = getImmunityTime(checkImmunityTimeStr, transactionTimeout);
-                            if (valueOfCurrentMinusBorn < checkImmunityTime) {
-                                if (checkPrepareQueueOffset(removeMap, doneOpOffset, msgExt)) {
-                                    newOffset = i + 1;
-                                    i++;
-                                    continue;
-                                }
-                            }
-                        } else {
-                            if ((0 <= valueOfCurrentMinusBorn) && (valueOfCurrentMinusBorn < checkImmunityTime)) {
-                                log.debug("New arrived, the miss offset={}, check it later checkImmunity={}, born={}", i,
-                                    checkImmunityTime, new Date(msgExt.getBornTimestamp()));
-                                break;
-                            }
-                        }
-                        List<MessageExt> opMsg = pullResult.getMsgFoundList();
-                        boolean isNeedCheck = (opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime)
-                            || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
-                            || (valueOfCurrentMinusBorn <= -1);
-
-                        if (isNeedCheck) {
-                            if (!putBackHalfMsgQueue(msgExt, i)) {
-                                continue;
-                            }
-                            listener.resolveHalfMsg(msgExt);
-                        } else {
-                            pullResult = fillOpRemoveMap(removeMap, opQueue, pullResult.getNextBeginOffset(), halfOffset, doneOpOffset);
-                            log.debug("The miss offset:{} in messageQueue:{} need to get more opMsg, result is:{}", i,
-                                messageQueue, pullResult);
-                            continue;
-                        }
-                    }
-                    newOffset = i + 1;
-                    i++;
-                }
-                if (newOffset != halfOffset) {
-                    transactionalMessageBridge.updateConsumeOffset(messageQueue, newOffset);
-                }
-                long newOpOffset = calculateOpOffset(doneOpOffset, opOffset);
-                if (newOpOffset != opOffset) {
-                    transactionalMessageBridge.updateConsumeOffset(opQueue, newOpOffset);
-                }
-            }
-        } catch (Throwable e) {
-            log.error("Check error", e);
-        }
-
-    }
-
     private long getImmunityTime(String checkImmunityTimeStr, long transactionTimeout) {
         long checkImmunityTime;
 
@@ -280,6 +298,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
      */
     private PullResult fillOpRemoveMap(HashMap<Long, Long> removeMap,
         MessageQueue opQueue, long pullOffsetOfOp, long miniOffset, List<Long> doneOpOffset) {
+        //拉取32条消息，判断当前处理的消息是否已经处理过
         PullResult pullResult = pullOpMsg(opQueue, pullOffsetOfOp, 32);
         if (null == pullResult) {
             return null;

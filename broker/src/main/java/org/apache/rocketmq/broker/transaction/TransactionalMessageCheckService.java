@@ -52,7 +52,7 @@ public class TransactionalMessageCheckService extends ServiceThread {
         int checkMax = brokerController.getBrokerConfig().getTransactionCheckMax();
         long begin = System.currentTimeMillis();
         log.info("Begin to check prepare message, begin time:{}", begin);
-        //每过60s进行一次状态回查
+        //每过60s进行一次状态回查，可通过transactionCheckInterval更改配置
         this.brokerController.getTransactionalMessageService().check(timeout, checkMax, this.brokerController.getTransactionalMessageCheckListener());
         log.info("End to check prepare message, consumed time:{}", System.currentTimeMillis() - begin);
     }
