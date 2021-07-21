@@ -31,8 +31,8 @@ public class Producer {
         /*
          * Instantiate with a producer group name.
          */
-        DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
-        producer.setNamesrvAddr("name-server1-ip:9876;name-server2-ip:9876");
+        DefaultMQProducer producer = new DefaultMQProducer("producer_group");
+        producer.setNamesrvAddr("127.0.0.1:9876");
         /*
          * Specify name server addresses.
          * <p/>
@@ -64,7 +64,7 @@ public class Producer {
                 /*
                  * Call send message to deliver message to one of brokers.
                  */
-                SendResult sendResult = producer.send(msg);
+                SendResult sendResult = producer.send(msg,100000);
 
                 System.out.printf("%s%n", sendResult);
             } catch (Exception e) {
@@ -76,6 +76,6 @@ public class Producer {
         /*
          * Shut down once the producer instance is not longer in use.
          */
-        producer.shutdown();
+//        producer.shutdown();
     }
 }

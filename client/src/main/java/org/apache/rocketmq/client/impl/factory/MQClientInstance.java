@@ -253,7 +253,7 @@ public class MQClientInstance {
     }
 
     private void startScheduledTask() {
-        //从nameserver获取broker信息
+        //获取nameserver信息
         if (null == this.clientConfig.getNamesrvAddr()) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
@@ -267,7 +267,7 @@ public class MQClientInstance {
                 }
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
-
+        //从Nameserver更新topic信息
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
