@@ -255,7 +255,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                 this.brokerController.getConsumerFilterManager());
         }
 
-        //从store中获取对应的group，topic，queueId,起始偏移量的消息内容，以及所给位置到请求的最大可读未知
+        //从store中获取对应的group，topic，queueId,起始偏移量的消息内容，以及所给位置到请求的最大可读位置
         final GetMessageResult getMessageResult =
             this.brokerController.getMessageStore().getMessage(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
                 requestHeader.getQueueId(), requestHeader.getQueueOffset(), requestHeader.getMaxMsgNums(), messageFilter);
