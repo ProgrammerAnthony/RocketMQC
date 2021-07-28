@@ -530,7 +530,7 @@ public class MQClientAPIImpl {
                 long cost = System.currentTimeMillis() - beginStartTime;
                 RemotingCommand response = responseFuture.getResponseCommand();
                 if (null == sendCallback && response != null) {
-
+                    //没有sendCallback，则发送消息的结果通过SendMessageContext封装
                     try {
                         SendResult sendResult = MQClientAPIImpl.this.processSendResponse(brokerName, msg, response, addr);
                         if (context != null && sendResult != null) {
@@ -552,7 +552,7 @@ public class MQClientAPIImpl {
                             context.setSendResult(sendResult);
                             context.getProducer().executeSendMessageHookAfter(context);
                         }
-
+                        //有sendCallback，则发送消息的结果通过SendMessageContext封装，并回调 sendCallback.onSuccess
                         try {
                             sendCallback.onSuccess(sendResult);
                         } catch (Throwable e) {
