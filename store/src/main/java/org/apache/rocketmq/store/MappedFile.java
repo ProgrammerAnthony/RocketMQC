@@ -144,6 +144,7 @@ public class MappedFile extends ReferenceResource {
     public void init(final String fileName, final int fileSize,
         final TransientStorePool transientStorePool) throws IOException {
         init(fileName, fileSize);
+        //transientStorePoolEnable  堆外内存池开关为true，则初始化MappedFile的writeBuffre，该Buffer从transientStorePool中获取
         this.writeBuffer = transientStorePool.borrowBuffer();
         this.transientStorePool = transientStorePool;
     }
@@ -266,6 +267,9 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
+     * 将内存数据刷写到磁盘
+     * 数据会在fileChannel或者MappedByteBuffer中。在MappedFile的设计中，只有提交了的数据，
+     * 写入到了MappedByteBuffer或者FileChannel中的数据才是安全的数据
      * @return The current flushed position
      */
     public int flush(final int flushLeastPages) {
@@ -294,6 +298,7 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
+    //将writeBuffer数据写入FileChannel
     public int commit(final int commitLeastPages) {
         if (writeBuffer == null) {
             //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
@@ -317,6 +322,8 @@ public class MappedFile extends ReferenceResource {
         return this.committedPosition.get();
     }
 
+    //数据会在fileChannel或者MappedByteBuffer中。在MappedFile的设计中，只有提交了的数据，
+    // 写入到了MappedByteBuffer或者FileChannel中的数据才是安全的数据
     protected void commit0(final int commitLeastPages) {
         int writePos = this.wrotePosition.get();
         int lastCommittedPosition = this.committedPosition.get();
