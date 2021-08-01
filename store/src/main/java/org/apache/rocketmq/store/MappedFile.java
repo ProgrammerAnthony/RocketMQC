@@ -322,8 +322,8 @@ public class MappedFile extends ReferenceResource {
         return this.committedPosition.get();
     }
 
-    //数据会在fileChannel或者MappedByteBuffer中。在MappedFile的设计中，只有提交了的数据，
-    // 写入到了MappedByteBuffer或者FileChannel中的数据才是安全的数据
+
+    //执行fileChannel.write
     protected void commit0(final int commitLeastPages) {
         int writePos = this.wrotePosition.get();
         int lastCommittedPosition = this.committedPosition.get();

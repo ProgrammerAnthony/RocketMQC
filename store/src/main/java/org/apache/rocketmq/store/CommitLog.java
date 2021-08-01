@@ -972,11 +972,11 @@ public class CommitLog {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                 //放入写请求队列
                 service.putRequest(request);
-                // 同步等待获取刷盘结果
+                //同步等待获取刷盘结果
                 CompletableFuture<PutMessageStatus> flushOkFuture = request.future();
                 PutMessageStatus flushStatus = null;
                 try {
-                    //5秒超时等待刷盘结果
+                    //等待刷盘结果（5秒超时）
                     flushStatus = flushOkFuture.get(this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout(),
                             TimeUnit.MILLISECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -1358,7 +1358,7 @@ public class CommitLog {
                 }
 
                 try {
-                    // 刷盘之前，进行线程sleep
+                    // 刷盘之前，进行线程sleep/countdownlatch等待
                     if (flushCommitLogTimed) {
                         Thread.sleep(interval);
                     } else {
@@ -1514,8 +1514,8 @@ public class CommitLog {
             // 线程是否停止
             while (!this.isStopped()) {
                 try {
-                    // 设置hasNotified为false，未被通知，然后交换写对队列和读队列，重置waitPoint为（1），
-                    // 休息200ms，初始化为10ms，finally设置hasNotified为未被通知，交换写对队列和读队列
+                    // 设置hasNotified为false，未被通知。然后交换写队列和读队列，重置waitPoint为1，
+                    // 休息10ms，（直到waitPoint被countdown唤醒，则可以执行下面doCommit逻辑）finally设置hasNotified为未被通知，交换写对队列和读队列
                     this.waitForRunning(10);
                     this.doCommit();
                 } catch (Exception e) {
