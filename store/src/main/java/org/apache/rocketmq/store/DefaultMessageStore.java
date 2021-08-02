@@ -189,18 +189,19 @@ public class DefaultMessageStore implements MessageStore {
                 result = result && this.scheduleMessageService.load();
             }
 
-            // load Commit Log
+            //加载mappedFile到mappedFileQueue
             result = result && this.commitLog.load();
 
-            // load Consume Queue
+            // 加载ConsumeQueue到consumeQueueTable
             result = result && this.loadConsumeQueue();
 
             if (result) {
                 this.storeCheckpoint =
                     new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
-
+                //加载indexFile到ArrayList<IndexFile> indexFileList
                 this.indexService.load(lastExitOK);
 
+                //如果abort文件存在，代表异常退出，需要恢复数据
                 this.recover(lastExitOK);
 
                 log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());
