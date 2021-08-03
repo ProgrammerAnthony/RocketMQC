@@ -38,6 +38,7 @@ public class MappedFileQueue {
     //commitlog对应存储路径
     private final String storePath;
 
+    //固定每个mappedFile的大小
     private final int mappedFileSize;
 
     //读多写少用CopyOnWriteArrayList
@@ -57,6 +58,7 @@ public class MappedFileQueue {
         this.allocateMappedFileService = allocateMappedFileService;
     }
 
+    //遍历检查mappedFile的文件大小
     public void checkSelf() {
 
         if (!this.mappedFiles.isEmpty()) {
@@ -123,6 +125,7 @@ public class MappedFileQueue {
         this.deleteExpiredFile(willRemoveFiles);
     }
 
+    //先移除mappedFiles列表中包含的数据，再移除
     void deleteExpiredFile(List<MappedFile> files) {
 
         if (!files.isEmpty()) {
@@ -130,6 +133,7 @@ public class MappedFileQueue {
             Iterator<MappedFile> iterator = files.iterator();
             while (iterator.hasNext()) {
                 MappedFile cur = iterator.next();
+
                 if (!this.mappedFiles.contains(cur)) {
                     iterator.remove();
                     log.info("This mappedFile {} is not contained by mappedFiles, so skip it.", cur.getFileName());
@@ -146,6 +150,7 @@ public class MappedFileQueue {
         }
     }
 
+    //将存储路径下的mappedFile加入到mappedFiles里面去
     public boolean load() {
         File dir = new File(this.storePath);
         File[] files = dir.listFiles();
@@ -193,6 +198,7 @@ public class MappedFileQueue {
         return 0;
     }
 
+    //获取当前list最后一个mappedFile或创建有效的mappedFile
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
         long createOffset = -1;
         MappedFile mappedFileLast = getLastMappedFile();
