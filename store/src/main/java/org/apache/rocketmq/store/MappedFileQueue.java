@@ -35,10 +35,12 @@ public class MappedFileQueue {
 
     private static final int DELETE_FILES_BATCH_MAX = 10;
 
+    //commitlog对应存储路径
     private final String storePath;
 
     private final int mappedFileSize;
 
+    //读多写少用CopyOnWriteArrayList
     private final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<MappedFile>();
 
     private final AllocateMappedFileService allocateMappedFileService;
