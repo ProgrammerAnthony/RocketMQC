@@ -53,7 +53,7 @@ public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
             //获得消息体
             byte[] body = remotingCommand.getBody();
             if (body != null) {
-                //写入协议
+                //写入消息体
                 out.writeBytes(body);
             }
         } catch (Exception e) {

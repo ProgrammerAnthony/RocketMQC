@@ -173,9 +173,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         Bootstrap handler = this.bootstrap.group(this.eventLoopGroupWorker).channel(NioSocketChannel.class)
             .option(ChannelOption.TCP_NODELAY, true)
             .option(ChannelOption.SO_KEEPALIVE, false)
-            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, nettyClientConfig.getConnectTimeoutMillis())
-            .option(ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize())
-            .option(ChannelOption.SO_RCVBUF, nettyClientConfig.getClientSocketRcvBufSize())
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, nettyClientConfig.getConnectTimeoutMillis()) //3s
+            .option(ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize()) //65535
+            .option(ChannelOption.SO_RCVBUF, nettyClientConfig.getClientSocketRcvBufSize()) //65535
             .handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
@@ -188,6 +188,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                             log.warn("Connections are insecure as SSLContext is null!");
                         }
                     }
+                    //单独制定excutor，用于执行handler
                     pipeline.addLast(
                         defaultEventExecutorGroup,
                         // 消息编码
@@ -486,6 +487,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
     /**
      * 创建Channel连接，封装到ChannelWrapper，所有的连接放入到channelTables的map里去
+     * 如果是新创建的channel，会对应connect
      * @param addr
      * @return
      * @throws InterruptedException
