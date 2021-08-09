@@ -16,6 +16,9 @@
  */
 package org.apache.rocketmq.client.hook;
 
+/**
+ * 消息发送钩子函数，用于在消息发送之前、发送之后执行一定的业务逻辑
+ */
 public interface SendMessageHook {
     String hookName();
 

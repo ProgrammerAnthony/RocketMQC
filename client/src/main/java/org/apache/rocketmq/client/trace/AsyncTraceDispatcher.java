@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.AccessChannel;
 import org.apache.rocketmq.client.common.ThreadLocalIndex;
@@ -51,32 +52,37 @@ import org.apache.rocketmq.remoting.RPCHook;
 
 import static org.apache.rocketmq.client.trace.TraceConstants.TRACE_INSTANCE_NAME;
 
+/**
+ * 异步转发消息轨迹数据
+ * 官方建议，在Broker集群中，新增加一台机器，只在这台机器上开启消息轨迹跟踪，
+ * 这样该集群内的消息轨迹数据只会发送到这一台Broker服务器上，并不会增加集群内原先业务Broker的负载压力。
+ */
 public class AsyncTraceDispatcher implements TraceDispatcher {
 
     private final static InternalLogger log = ClientLogger.getLog();
-    private final int queueSize;
-    private final int batchSize;
-    private final int maxMsgSize;
-    private final DefaultMQProducer traceProducer;
-    private final ThreadPoolExecutor traceExecutor;
+    private final int queueSize;//异步转发，队列长度，默认为2048，当前版本不能修改。
+    private final int batchSize;//批量消息条数，消息轨迹一次消息发送请求包含的数据条数，默认为100，当前版本不能修改。
+    private final int maxMsgSize;//消息轨迹一次发送的最大消息大小，默认为128K，当前版本不能修改。
+    private final DefaultMQProducer traceProducer;//用来发送消息轨迹的消息发送者。将消息轨迹数据也当成一条消息存储到Broker服务器。
+    private final ThreadPoolExecutor traceExecutor;//线程池，用来异步执行消息发送。
     // The last discard number of log
-    private AtomicLong discardCount;
-    private Thread worker;
-    private ArrayBlockingQueue<TraceContext> traceContextQueue;
-    private ArrayBlockingQueue<Runnable> appenderQueue;
+    private AtomicLong discardCount;//记录丢弃的消息个数。
+    private Thread worker;//woker线程，主要负责从追加队列中获取一批待发送的消息轨迹数据，提交到线程池中执行。
+    private ArrayBlockingQueue<TraceContext> traceContextQueue;//消息轨迹TraceContext队列，用来存放待发送到服务端的消息。
+    private ArrayBlockingQueue<Runnable> appenderQueue;//线程池内部队列，默认长度1024。
     private volatile Thread shutDownHook;
     private volatile boolean stopped = false;
     private DefaultMQProducerImpl hostProducer;
-    private DefaultMQPushConsumerImpl hostConsumer;
+    private DefaultMQPushConsumerImpl hostConsumer;//消费者信息，记录消息消费时的轨迹信息。
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     private String dispatcherId = UUID.randomUUID().toString();
-    private String traceTopicName;
+    private String traceTopicName;//用于跟踪消息轨迹的topic名称。
     private AtomicBoolean isStarted = new AtomicBoolean(false);
     private AccessChannel accessChannel = AccessChannel.LOCAL;
     private String group;
     private Type type;
 
-    public AsyncTraceDispatcher(String group, Type type,String traceTopicName, RPCHook rpcHook) {
+    public AsyncTraceDispatcher(String group, Type type, String traceTopicName, RPCHook rpcHook) {
         // queueSize is greater than or equal to the n power of 2 of value
         this.queueSize = 2048;
         this.batchSize = 100;
@@ -93,12 +99,12 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
             this.traceTopicName = TopicValidator.RMQ_SYS_TRACE_TOPIC;
         }
         this.traceExecutor = new ThreadPoolExecutor(//
-            10, //
-            20, //
-            1000 * 60, //
-            TimeUnit.MILLISECONDS, //
-            this.appenderQueue, //
-            new ThreadFactoryImpl("MQTraceSendThread_"));
+                10, //
+                20, //
+                1000 * 60, //
+                TimeUnit.MILLISECONDS, //
+                this.appenderQueue, //
+                new ThreadFactoryImpl("MQTraceSendThread_"));
         traceProducer = getAndCreateTraceProducer(rpcHook);
     }
 
@@ -165,7 +171,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
     }
 
     private String genGroupNameForTrace() {
-        return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type ;
+        return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type;
     }
 
     @Override
@@ -350,7 +356,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
          * Send message trace data
          *
          * @param keySet the keyset in this batch(including msgId in original message not offsetMsgId)
-         * @param data the message trace data in this batch
+         * @param data   the message trace data in this batch
          */
         private void sendTraceDataByMQ(Set<String> keySet, final String data, String dataTopic, String regionId) {
             String traceTopic = traceTopicName;
