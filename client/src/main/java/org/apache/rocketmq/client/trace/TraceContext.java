@@ -25,11 +25,11 @@ import java.util.List;
  */
 public class TraceContext implements Comparable<TraceContext> {
 
-    private TraceType traceType;
+    private TraceType traceType;//：Pub(消息发送)、SubBefore(消息拉取到客户端，执行业务定义的消费逻辑之前)、SubAfter(消费后)。
     private long timeStamp = System.currentTimeMillis();
-    private String regionId = "";
+    private String regionId = "";//取自BrokerConfig#regionId。
     private String regionName = "";
-    private String groupName = "";
+    private String groupName = "";//组名称，traceType为Pub时为生产者组的名称；如果traceType为subBefore或subAfter时为消费组名称。
     private int costTime = 0;
     private boolean isSuccess = true;
     private String requestId = MessageClientIDSetter.createUniqID();

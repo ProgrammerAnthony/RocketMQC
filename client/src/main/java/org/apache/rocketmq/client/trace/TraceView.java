@@ -28,7 +28,7 @@ public class TraceView {
     private String tags;
     private String keys;
     private String storeHost;
-    private String clientHost;
+    private String clientHost;//跟踪类型为PUB时为存储该消息的Broker服务器IP；跟踪类型为subBefore、subAfter时为消费者IP。
     private int costTime;
     private String msgType;
     private String offSetMsgId;

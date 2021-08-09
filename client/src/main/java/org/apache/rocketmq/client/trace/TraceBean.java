@@ -25,7 +25,7 @@ public class TraceBean {
     private String msgId = "";
     private String offsetMsgId = "";
     private String tags = "";
-    private String keys = "";
+    private String keys = "";//消息索引key，根据该key可快速检索消息。
     private String storeHost = LOCAL_ADDRESS;
     private String clientHost = LOCAL_ADDRESS;
     private long storeTime;
