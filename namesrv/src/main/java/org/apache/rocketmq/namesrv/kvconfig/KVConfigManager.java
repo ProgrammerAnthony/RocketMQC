@@ -38,6 +38,7 @@ public class KVConfigManager {
     private final HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable =
         new HashMap<String, HashMap<String, String>>();
 
+
     public KVConfigManager(NamesrvController namesrvController) {
         this.namesrvController = namesrvController;
     }
