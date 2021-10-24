@@ -194,6 +194,7 @@ public class Configuration {
             return;
         }
 
+        //将对应属性保存到Properties
         persist();
     }
 

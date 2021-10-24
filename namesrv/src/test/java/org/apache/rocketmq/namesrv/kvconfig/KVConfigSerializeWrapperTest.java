@@ -40,9 +40,10 @@ public class KVConfigSerializeWrapperTest {
         kvs.put("cid", "default-consumer-name");
         result.put(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, kvs);
         kvConfigSerializeWrapper.setConfigTable(result);
+        //KVConfigSerializeWrapper转换为json
         byte[] serializeByte = KVConfigSerializeWrapper.encode(kvConfigSerializeWrapper);
         assertThat(serializeByte).isNotNull();
-
+        //json对应转换为KVConfigSerializeWrapper
         KVConfigSerializeWrapper deserializeObject = KVConfigSerializeWrapper.decode(serializeByte, KVConfigSerializeWrapper.class);
         assertThat(deserializeObject.getConfigTable()).containsKey(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG);
         assertThat(deserializeObject.getConfigTable().get(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG).get("broker-name")).isEqualTo("default-broker");
