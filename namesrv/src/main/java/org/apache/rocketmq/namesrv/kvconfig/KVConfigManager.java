@@ -59,7 +59,7 @@ public class KVConfigManager {
             }
         }
     }
-
+    //文件保存配置信息,1 保存到configTable hashmap中，2 从configTable到本地文件
     public void putKVConfig(final String namespace, final String key, final String value) {
         try {
             this.lock.writeLock().lockInterruptibly();
@@ -85,7 +85,7 @@ public class KVConfigManager {
         } catch (InterruptedException e) {
             log.error("putKVConfig InterruptedException", e);
         }
-
+        //文件保存配置信息,从configTable到本地文件
         this.persist();
     }
 
@@ -95,10 +95,11 @@ public class KVConfigManager {
             try {
                 KVConfigSerializeWrapper kvConfigSerializeWrapper = new KVConfigSerializeWrapper();
                 kvConfigSerializeWrapper.setConfigTable(this.configTable);
-
+                //返回如，{"configTable":{"ORDER_TOPIC_CONFIG":{"UnitTest":"test"}}}
                 String content = kvConfigSerializeWrapper.toJson();
 
                 if (null != content) {
+                    //文件保存（删除）配置信息,从configTable到本地文件
                     MixAll.string2File(content, this.namesrvController.getNamesrvConfig().getKvConfigPath());
                 }
             } catch (IOException e) {

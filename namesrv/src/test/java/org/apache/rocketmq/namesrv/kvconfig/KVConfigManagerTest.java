@@ -34,6 +34,8 @@ public class KVConfigManagerTest extends NameServerInstanceTest {
 
     @Test
     public void testPutKVConfig() {
+        //文件保存配置信息,1 保存到configTable hashmap中，2 从configTable到本地文件
+        //保存信息{"configTable":{"ORDER_TOPIC_CONFIG":{"UnitTest":"test"}}}
         kvConfigManager.putKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, "UnitTest", "test");
         byte[] kvConfig = kvConfigManager.getKVListByNamespace(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG);
         assertThat(kvConfig).isNotNull();

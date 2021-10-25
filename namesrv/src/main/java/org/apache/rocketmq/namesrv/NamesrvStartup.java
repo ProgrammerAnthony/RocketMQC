@@ -82,6 +82,7 @@ public class NamesrvStartup {
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         nettyServerConfig.setListenPort(9876);
+        //打印相关nameserver配置，nettyserver配置
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -126,6 +127,7 @@ public class NamesrvStartup {
         final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig);
 
         // remember all configs to prevent discard
+        // 报错所有的配置到Properties
         controller.getConfiguration().registerConfig(properties);
 
         return controller;
@@ -143,7 +145,7 @@ public class NamesrvStartup {
             System.exit(-3);
         }
 
-        //添加关闭的钩子，在关闭的时候会调用controller.shutdown();
+        // virtual-machine shutdown hook. 添加一个初始化但是并没开始的钩子线程，在关闭的时候会调用controller.shutdown();
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {

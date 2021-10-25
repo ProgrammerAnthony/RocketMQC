@@ -74,7 +74,7 @@ public class NamesrvController {
     }
 
     public boolean initialize() {
-        //加载nameserver相关配置
+        //从文件中加载nameserver相关配置到configTable（Hashmap）
         this.kvConfigManager.load();
         //初始化Netty服务器
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
@@ -149,12 +149,12 @@ public class NamesrvController {
             this.remotingServer.registerDefaultProcessor(new ClusterTestRequestProcessor(this, namesrvConfig.getProductEnvName()),
                 this.remotingExecutor);
         } else {
-            //把NameServer的默认请求处理组件注册进去，注册给了NettyServer
-            //Nettyserver收到的网络请求，都有这个处理器处理
+            //把NameServer的默认请求处理组件DefaultRequestProcessor和ExecutorService绑定
+            //！！！ Nettyserver收到的网络请求，都有这个处理器处理
             this.remotingServer.registerDefaultProcessor(new DefaultRequestProcessor(this), this.remotingExecutor);
         }
     }
-
+    //启动Netty绑定并启动监听端口
     public void start() throws Exception {
         this.remotingServer.start();
 
