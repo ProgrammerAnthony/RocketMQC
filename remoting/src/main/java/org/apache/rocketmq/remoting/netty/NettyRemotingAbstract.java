@@ -596,6 +596,7 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
+    //通过当前线程，监听Netty链接断开等事件，需要调用putNettyEvent放入相关事件
     class NettyEventExecutor extends ServiceThread {
         private final LinkedBlockingQueue<NettyEvent> eventQueue = new LinkedBlockingQueue<NettyEvent>();
         private final int maxSize = 10000;

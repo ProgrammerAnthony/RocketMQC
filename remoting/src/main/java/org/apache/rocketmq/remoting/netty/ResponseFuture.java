@@ -33,7 +33,7 @@ public class ResponseFuture {
     //invokeCallback 用于处理异步的callback
     private final InvokeCallback invokeCallback;
     private final long beginTimestamp = System.currentTimeMillis();
-    //countDownLatch用于实现同步等待
+    //use countDownLatch to implement wait
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private final SemaphoreReleaseOnlyOnce once;

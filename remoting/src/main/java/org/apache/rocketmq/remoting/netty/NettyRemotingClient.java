@@ -702,6 +702,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             super.connect(ctx, remoteAddress, localAddress, promise);
 
             if (NettyRemotingClient.this.channelEventListener != null) {
+                //处理回调
                 NettyRemotingClient.this.putNettyEvent(new NettyEvent(NettyEventType.CONNECT, remote, ctx.channel()));
             }
         }

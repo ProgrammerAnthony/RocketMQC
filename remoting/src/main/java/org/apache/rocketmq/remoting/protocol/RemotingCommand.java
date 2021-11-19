@@ -255,6 +255,7 @@ public class RemotingCommand {
                         try {
                             String value = this.extFields.get(fieldName);
                             if (null == value) {
+                                //解析字段是否为空逻辑处理
                                 if (!isFieldNullable(field)) {
                                     throw new RemotingCommandException("the custom field <" + fieldName + "> is null");
                                 }
